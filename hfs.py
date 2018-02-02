@@ -27,12 +27,14 @@ __all__ = [
     'LocalPool',
     'HASH',
     'HASHLEN',
+    'PACKLIMIT',
 ]
 __author__ = 'Hypercube <hypercube@0x01.me>'
 
 import io
 import os
 import pathlib
+import pickle
 import sys
 import tempfile
 
@@ -41,6 +43,8 @@ if sys.version_info < (3, 6):
     import sha3
 HASH = hashlib.sha3_256
 HASHLEN = len(HASH().hexdigest())
+
+PACKLIMIT = 1024
 
 
 # According to https://eklitzke.org/efficient-file-copying-on-linux ,
@@ -125,6 +129,10 @@ class HFS:
     def getsize(self, key):
         """Get the size of an object."""
         return self._pool.getsize(key)
+
+    def flush(self):
+        """Ensure all the data has been stored safely."""
+        self._pool.flush()
 
 
 class Node:
@@ -328,6 +336,12 @@ class LocalPool:
         self._temp = self._path / '_'
         if not self._temp.exists():
             self._temp.mkdir()
+        packpath = self._path / '_pack.pickle'
+        if packpath.exists():
+            with packpath.open('rb') as f:
+                self._pack = pickle.load(f)
+        else:
+            self._pack = {}
 
     def __repr__(self):
         return '%s(%r)' % (type(self).__name__, str(self._path))
@@ -336,6 +350,9 @@ class LocalPool:
         """Put a string or a binary file-like object into the pool."""
         if isinstance(item, (bytes, bytearray)):
             key = HASH(item).hexdigest()
+            if len(item) < PACKLIMIT:
+                self._pack[key] = bytes(item)
+                return key
             path = self / key
             if not path.exists():
                 with tempfile.NamedTemporaryFile(
@@ -385,6 +402,8 @@ class LocalPool:
 
     def __getitem__(self, key):
         """Get an object as a binary file-like object."""
+        if key in self._pack:
+            return io.BytesIO(self._pack[key])
         path = self / key
         if not path.exists():
             raise KeyError(key)
@@ -392,5 +411,14 @@ class LocalPool:
 
     def getsize(self, key):
         """Get the size of an object."""
+        if key in self._pack:
+            return len(self._pack[key])
         path = self / key
         return os.path.getsize(str(path)) if path.exists() else 0
+
+    def flush(self):
+        """Save the packed data."""
+        with tempfile.NamedTemporaryFile(
+                dir=str(self._temp), delete=False) as f:
+            pickle.dump(self._pack, f)
+        os.rename(f.name, str(self._path / '_pack.pickle'))

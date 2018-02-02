@@ -145,6 +145,7 @@ def snapshot(hfs, path, *, file_attrs=None, dir_attrs=None,
             else:
                 raise AttributeError('Unsupported dir attr: %s' % attr)
         keys[inode] = hfs(MapNode(data, **attrs))
+        hfs.flush()
         if leave_hashfile[0]:
             (path / '.hfssnapshot').write_text(keys[inode] + '\n')
         return keys[inode]
