@@ -32,15 +32,16 @@ __all__ = [
 __author__ = 'Hypercube <hypercube@0x01.me>'
 
 import io
+import hashlib
 import os
 import pathlib
 import pickle
 import sys
 import tempfile
 
-import hashlib
 if sys.version_info < (3, 6):
     import sha3
+
 HASH = hashlib.sha3_256
 HASHLEN = len(HASH().hexdigest())
 
@@ -54,7 +55,7 @@ PACKLIMIT = 1024
 # than setting it to this value.
 # There's no much difference using `readinto` on `memoryview(bytearray())`
 # or just `read`.
-def iomap(func, file, blksize=256*1024):
+def iomap(func, file, blksize=256 * 1024):
     if not callable(func):
         funcs = func
         func = lambda b: [f(b) for f in funcs]
@@ -70,6 +71,7 @@ class HFS:
     This implementation does not contain cache, because caches prevent
     multiple HFS instances of the same HFS running at the same time.
     """
+
     def __init__(self, pool, root='0' * HASHLEN):
         """Get an HFS object with the given Pool object.
 
@@ -147,7 +149,7 @@ class Node:
         """Create a node.  See help(self) for the actual signature."""
         self._data = data
         self._attrs = attrs
-        self._attrs['_node'] = self._node
+        self._attrs['_node'] = self.__node__
         self._size = None
 
     def commit(self, hfs):
@@ -195,7 +197,7 @@ class Node:
     @classmethod
     def register(cls, subcls):
         """Register a concrete subclass."""
-        cls._types[HASH(subcls._node.encode()).hexdigest()] = subcls
+        cls._types[HASH(subcls.__node__.encode()).hexdigest()] = subcls
         return subcls
 
     @classmethod
@@ -213,16 +215,12 @@ class Node:
 @Node.register
 class FileNode(Node):
     """FileNode(<hash value of the blob>, **attrs)"""
-    _node = 'file'
+    __node__ = 'file'
 
     @classmethod
     def parse(cls, hfs, attrs):
         """Build a node from its metadata."""
         return cls(attrs['_data'], **attrs)
-
-    def open(self, hfs):
-        """Open the actual data as a binary file-like object."""
-        return self.hfs.open(self._data)
 
     @property
     def access(self):
@@ -265,7 +263,7 @@ class ContainerNode(Node):
 @Node.register
 class ListNode(ContainerNode):
     """ListNode([<hash value of the node>], **attrs)"""
-    _node = 'list'
+    __node__ = 'list'
 
     @classmethod
     def parse(cls, hfs, attrs):
@@ -286,7 +284,7 @@ class ListNode(ContainerNode):
 @Node.register
 class SetNode(ContainerNode):
     """SetNode({<hash value of the node>}, **attrs)"""
-    _node = 'set'
+    __node__ = 'set'
 
     @classmethod
     def parse(cls, hfs, attrs):
@@ -303,7 +301,7 @@ class SetNode(ContainerNode):
 class MapNode(ContainerNode):
     """MapNode({<name>: <hash value of the node>},
             **attrs)"""
-    _node = 'map'
+    __node__ = 'map'
 
     def commit(self, hfs):
         """Commit this node into an HFS."""
@@ -331,6 +329,7 @@ class LocalPool:
     first 2 digits of the hash value, thus no directory will contain more
     than 512 entries.
     """
+
     def __init__(self, path):
         self._path = pathlib.Path(path)
         self._temp = self._path / '_'
@@ -377,7 +376,7 @@ class LocalPool:
             hashobj = HASH()
             with tempfile.NamedTemporaryFile(
                     dir=str(self._temp), delete=False) as f:
-                iomap((hashobj.update, f.write), content)
+                iomap((hashobj.update, f.write), item)
             key = hashobj.hexdigest()
             path = self / key
             if path.exists():
@@ -392,13 +391,13 @@ class LocalPool:
         for i in range(0, HASHLEN, 2):
             if (path / other[i:]).exists():
                 return path / other[i:]
-            path /= other[i:i+2]
+            path /= other[i:i + 2]
             if not path.exists():
                 count = len(list(path.parent.iterdir()))
                 if count < 250:
                     return path.parent / other[i:]
                 path.mkdir()
-                return path / other[i+2:]
+                return path / other[i + 2:]
 
     def __getitem__(self, key):
         """Get an object as a binary file-like object."""

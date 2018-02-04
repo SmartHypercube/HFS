@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 
 import os
-from errno import errorcode, EACCES, EFAULT, ENOENT, ENOTDIR, EINVAL
-from fuse import FUSE, FuseOSError, Operations
+from errno import errorcode, ENOENT, EINVAL
+from fusepy import FUSE, FuseOSError, Operations
 
 from hfs import HFS, LocalPool
 
@@ -14,19 +14,21 @@ def logmethod(func):
             result = func(*args)
         except FuseOSError as e:
             print('%s(%s) -> %s' % (func.__name__,
-                    ', '.join(map(repr, args[1:])), errorcode[e.args[0]]))
+                                    ', '.join(map(repr, args[1:])),
+                                    errorcode[e.args[0]]))
             raise e
         if func.__name__ not in ('getattr', 'read'):
             if result is None:
                 print('%s(%s)' % (func.__name__,
-                        ', '.join(map(repr, args[1:]))))
+                                  ', '.join(map(repr, args[1:]))))
             else:
                 print('%s(%s) = %r' % (func.__name__,
-                        ', '.join(map(repr, args[1:])), result))
+                                       ', '.join(map(repr, args[1:])), result))
         else:
             print('%s(%s) = ...' % (func.__name__,
-                    ', '.join(map(repr, args[1:]))))
+                                    ', '.join(map(repr, args[1:]))))
         return result
+
     return wrapped
 
 
@@ -90,8 +92,9 @@ class HFSFuse(Operations):
 
 
 if __name__ == '__main__':
-    from sys import argv
+    from sys import argv, exit
+
     if len(argv) < 4:
-        os.exit('Usage: romount.py <pool path> <root hash> <mount point>')
+        exit('Usage: romount.py <pool path> <root hash> <mount point>')
     FUSE(HFSFuse(HFS(LocalPool(argv[1]), argv[2])), argv[3],
-            nothreads=True, foreground=True)
+         nothreads=True, foreground=True)

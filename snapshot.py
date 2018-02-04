@@ -45,6 +45,7 @@ __version__ = '0.1'
 __all__ = ['snapshot']
 __author__ = 'Hypercube <hypercube@0x01.me>'
 
+import traceback
 from pathlib import Path
 
 from hfs import HFS, LocalPool, MapNode, FileNode
@@ -118,12 +119,12 @@ def snapshot(hfs, path, *, file_attrs=None, dir_attrs=None,
             if item.name == '.hfssnapshot' and not process_hashfile:
                 continue
             key = snapshot(hfs, item,
-                    file_attrs=file_attrs,
-                    dir_attrs=dir_attrs,
-                    use_hashfile=use_hashfile,
-                    process_hashfile=process_hashfile,
-                    leave_hashfile=leave_hashfile[1:]*2,
-                    keys=keys)
+                           file_attrs=file_attrs,
+                           dir_attrs=dir_attrs,
+                           use_hashfile=use_hashfile,
+                           process_hashfile=process_hashfile,
+                           leave_hashfile=leave_hashfile[1:] * 2,
+                           keys=keys)
             if key:
                 data[item.name] = key
         attrs = {}
@@ -210,9 +211,8 @@ if __name__ == '__main__':
                            leave_hashfile=leave_hashfile))
         except Exception as e:
             if debug:
-                import traceback
                 traceback.print_exc()
-            print(target, 'failed:', type(e).__name__+':', e, file=stderr)
+            print(target, 'failed:', type(e).__name__ + ':', e, file=stderr)
             error += 1
     if error == 1:
         exit('Failed to snapshot a target!')
