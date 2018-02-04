@@ -417,6 +417,10 @@ class LocalPool:
 
     def flush(self):
         """Save the packed data."""
+        packpath = self._path / '_pack.pickle'
+        if packpath.exists():
+            with packpath.open('rb') as f:
+                self._pack.update(pickle.load(f))
         with tempfile.NamedTemporaryFile(
                 dir=str(self._temp), delete=False) as f:
             pickle.dump(self._pack, f)
