@@ -273,8 +273,9 @@ class ListNode(ContainerNode):
 
     def __iter__(self):
         """Iter over the read-only mount paths."""
+        digits = len(str(len(self._data) - 1))
         for i in range(len(self._data)):
-            yield str(i)
+            yield '%0*d' % (digits, i)
 
     def __getitem__(self, key):
         """Get an item's hash value by its read-only mount path."""
