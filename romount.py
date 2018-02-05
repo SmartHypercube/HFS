@@ -66,7 +66,7 @@ class HFSFuse(Operations):
 
     @logmethod
     def open(self, path, flags):
-        if flags & ~(32768 | os.O_ACCMODE):
+        if flags & ~(32768 | os.O_ACCMODE | os.O_NONBLOCK):
             raise FuseOSError(EINVAL)
         accmode = flags & os.O_ACCMODE
         if accmode == os.O_RDONLY:
